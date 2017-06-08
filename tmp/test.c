@@ -1,3 +1,5 @@
+/* http://d.hatena.ne.jp/web_develop/20071113/1194971862 */
+
 #include <sys/ioctl.h>
 #include <stdio.h>
 #include <asm/termbits.h>
