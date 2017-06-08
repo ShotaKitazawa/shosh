@@ -1,7 +1,8 @@
 # 聞く
 
 - alias コマンドが効かない
-- C-c , C-d が元シェル依存
+- C-c が一回しか動かない
+- C-d を 3 回押すと exit
 - 以下が動かない
 ```
 if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
@@ -16,7 +17,7 @@ if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
 
 - 完: コマンドの実行が終わると再びプロンプトを表示する．
 
-- 完: 環境変数の展開 ($HOGE > hoge)
+- 完: 環境変数の展開 ($HOGE > hogehoge)
 
 - Signal有効化
   - ジョブ管理（フォアグラウンド／バックグラウンド切り替え，

@@ -2,8 +2,94 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 
 #define LENGTH 64
+
+void sigcatch(int sig);
+void input_read(char* bp);
+void input_analyse(char buf[], char* argv[]);
+
+int main() {
+  /* 変数宣言・初期化 */
+  char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
+  char* bp;
+  char* argv[LENGTH];
+  pid_t pid, pid_wait;
+  int ret;
+  char* username = getlogin();
+  char hostname[LENGTH];
+  gethostname(hostname, sizeof(hostname));
+  char cwd[LENGTH];
+
+  /* SIGINT (C-c) シグナル時に Terminate > 入力消去 に変更 */
+   if (SIG_ERR == signal(SIGINT, sigcatch)) {
+    printf("failed to set signal handler.n");
+    exit(1);
+  }
+
+  while (1) {
+    /* コマンド毎の初期化 */
+    getcwd(cwd, sizeof(cwd));
+    printf("[%s@%s %s]$ ", username, hostname, cwd);
+    fflush(stdout);
+    memset(buf, '\0', LENGTH);
+    memset(argv, '\0', LENGTH);
+    bp = buf;
+    *bp = '\0';
+
+    /* Enter まで読み込み */
+    input_read(bp);
+
+    /* 入力は buff[1] から */
+    bp++;
+
+    /* 入力がなかったら continue */
+    if (*bp == '\0') continue;
+
+    /* exit が入力されたら正常終了 */
+    if (strcmp(bp, "exit") == 0) exit(0);
+
+    /* char* 型の文字列をスペース区切りの char** 型に変換する */
+    // argv = (char**)malloc(LENGTH);
+    input_analyse(buf, argv);
+
+    /* test */
+    // printf("argv[0]: %s\n", argv[0]);
+    // printf("argv[1]: %s\n", argv[1]);
+    // printf("argv[2]: %s\n", argv[2]);
+
+    /* 実行 */
+    if (strcmp(argv[0], "cd") == 0)
+      chdir(argv[1]);
+    else {
+      if ((pid = fork()) == 0) {
+        if ((ret = execvp(argv[0], argv)) == 0)
+          printf("Error\n");  // 動かない謎
+      }
+      pid_wait = wait(NULL);
+    }
+    fflush(stdout);
+
+    /* free */
+    while (**argv == '\0') free((*argv)++);
+  }
+
+  return 0;
+}
+
+void sigcatch(int sig) {
+  // printf("called sigcatch\n");
+  switch (sig) {
+    case 2:  // C-c
+      printf("\n");
+      main();
+      exit(0);
+      break;
+    default:
+      break;
+  }
+}
 
 void input_read(char* bp) {
   int fd_stdin = fileno(stdin);
@@ -17,7 +103,18 @@ void input_read(char* bp) {
       bp--;
       if (*bp == '\0') bp++;
     }
-    //printf("%x\n", *bp);  // デバッグ用
+    if (*bp == 0x00) {  // C-d && 文字入力なし
+      bp--;
+      if (*bp == '\0') {
+        printf("\n");
+        fflush(stdout);
+        exit(0);
+      }
+      else{
+        bp++;
+      }
+    }
+    //printf("%2x\n", *bp);  // デバッグ用
     fflush(stdout);
   } while (*bp != 0x0a);
   *bp = '\0';
@@ -83,66 +180,4 @@ void input_analyse(char buf[], char* argv[]) {
     n--;
     (*argv)--;
   }
-}
-
-int main() {
-  // 変数宣言・初期化
-  char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
-  char* bp;
-  char* argv[LENGTH];
-  pid_t pid, pid_wait;
-  int ret;
-  char* username = getlogin();
-  char hostname[LENGTH]; gethostname(hostname, sizeof(hostname));
-  char cwd[LENGTH];
-
-
-  while (1) {
-    /* コマンド毎の初期化 */
-    getcwd(cwd, sizeof(cwd));
-    printf("[%s@%s %s]$ ", username, hostname, cwd);
-    fflush(stdout);
-    memset(buf, '\0', LENGTH);
-    memset(argv, '\0', LENGTH);
-    bp = buf;
-    *bp = '\0';
-
-    /* Enter まで読み込み */
-    input_read(bp);
-
-    /* 入力は buff[1] から */
-    bp++;
-
-    /* 入力がなかったら continue */
-    if (*bp == '\0') continue;
-
-    /* exit が入力されたら return 0 */
-    if (strcmp(bp, "exit") == 0) return 0;
-
-    /* char* 型の文字列をスペース区切りの char** 型に変換する */
-    // argv = (char**)malloc(LENGTH);
-    input_analyse(buf, argv);
-
-    /* test */
-    //printf("argv[0]: %s\n", argv[0]);
-    //printf("argv[1]: %s\n", argv[1]);
-    //printf("argv[2]: %s\n", argv[2]);
-
-    /* 実行 */
-    if (strcmp(argv[0], "cd") == 0)
-      chdir(argv[1]);
-    else {
-      if ((pid = fork()) == 0) {
-        if ((ret = execvp(argv[0], argv)) == 0)
-          printf("Error\n");  // 動かない謎
-      }
-      pid_wait = wait(NULL);
-    }
-    fflush(stdout);
-
-    /* free */
-    while (**argv == '\0') free((*argv)++);
-  }
-
-  return 0;
 }
