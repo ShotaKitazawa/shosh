@@ -17,7 +17,8 @@ if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
 
 - 完: コマンドの実行が終わると再びプロンプトを表示する．
 
-- 完: 環境変数の展開 ($HOGE > hogehoge)
+- 完: 環境変数の展開 (${HOGE} > hogehoge)
+    - {} が無いとダメ
 
 - Signal有効化
   - ジョブ管理（フォアグラウンド／バックグラウンド切り替え，
