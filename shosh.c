@@ -2,21 +2,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-//#include <limits.h>
-//#include <sys/ioctl.h>
-//#include <asm/termbits.h>
 
 #define LENGTH 64
-const char* Exit = "exit\n";
+const char* EXIT = "exit\n";
+const char* CD = "cd";
 
-/* char* 型の文字列をスペース区切りの char** 型に変換する */
-void input_analysis(char buf[], char** argv) {
+/* char* 型の文字列をスペース区切りの char** 型に変換する, {"|'} で囲った場合区切らない */
+void input_analysis(char buf[], char* argv[]) {
   char* cp = buf;
   cp++;  // buf 先頭 = NULL のため
   int n = 0;
+  int flag = 0;
   *argv = (char*)malloc(LENGTH);
   while (*cp != '\0') {
-    if (*cp == 0x20) {  // space
+    if (*cp == 0x20 && flag == 0) {  // space
       **argv = '\0';
       while (n > 0) {
         n--;
@@ -24,7 +23,11 @@ void input_analysis(char buf[], char** argv) {
       }
       argv++;
       *argv = (char*)malloc(LENGTH);
-    } else {
+    }
+    else if (*cp == 0x22){ // "
+      flag ^= 1;
+    }
+    else {
       **argv = *cp;
       (*argv)++;
       n++;
@@ -36,18 +39,12 @@ void input_analysis(char buf[], char** argv) {
     n--;
     (*argv)--;
   }
-  argv++;
-  *argv = (char*)malloc(LENGTH);
-  **argv = '\0';
 }
-
 
 int main() {
   char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
   char* c;
   char* argv[LENGTH];
-  //char argc[LENGTH];
-  char *argc;
   int fd_stdin = fileno(stdin);
   pid_t pid, pid_wait;
   int ret;
@@ -72,6 +69,7 @@ int main() {
         c--;
         if (*c == '\0') c++;
       }
+      printf("%x\n", *c); // デバッグ用
       fflush(stdout);
     } while (*c != 0x0a);
     *c = '\0';
@@ -79,34 +77,31 @@ int main() {
     /* exit が入力されたら return 0 */
     char* cp = buf;
     cp++;
-    if (strcmp(cp, Exit) == 0) return 0;
+    if (strcmp(cp, EXIT) == 0) return 0;
 
     /* char* 型の文字列をスペース区切りの char** 型に変換する */
-    //argv = (char**)malloc(LENGTH);
+    // argv = (char**)malloc(LENGTH);
     input_analysis(buf, argv);
 
-    /* char* argc = argv[0] */
-    argc = (char*)malloc(LENGTH);
-    //argv0_to_argc(*argv, argc);
-    strcpy(argc,argv[0]);
-
     /* test */
-    printf("argc   : %s\n", argc);
     printf("argv[0]: %s\n", argv[0]);
     printf("argv[1]: %s\n", argv[1]);
     printf("argv[2]: %s\n", argv[2]);
 
     /* 実行 */
-    if ((pid = fork()) == 0) {
-      if ((ret = execvp(argc, argv)) == 0) printf("Error\n");
-      fflush(stdout);
-    }
-    pid_wait = wait(NULL);
+    if (strcmp(argv[0], CD) == 0)
+      chdir(argv[1]);
+    else {
+      if ((pid = fork()) == 0) {
+        if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n"); // 動かない謎
+        fflush(stdout);
+      }
+      pid_wait = wait(NULL);
 
-    /* free */
-    free(argc);
-    while(**argv == '\0'){
-      free((*argv)++);
+      /* free */
+      while (**argv == '\0') {
+        free((*argv)++);
+      }
     }
   }
 
