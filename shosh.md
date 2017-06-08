@@ -11,8 +11,10 @@
 
 - パイプ実装
 
-- C-{f,b,a,e} and 矢印キー の実装
-
 - 完: 環境変数の展開 ($HOGE > hoge)
 
+- 'C-{f,b,a,e,<-,->}' の実装
+
 - .shoshrc の作成
+
+- .shosh_history と矢印上下の実装

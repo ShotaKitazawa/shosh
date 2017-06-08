@@ -4,8 +4,6 @@
 #include <unistd.h>
 
 #define LENGTH 64
-const char* EXIT = "exit";
-const char* CD = "cd";
 
 void input_read(char* bp) {
   int fd_stdin = fileno(stdin);
@@ -25,8 +23,8 @@ void input_read(char* bp) {
   *bp = '\0';
 }
 
-/* char* 型の文字列をスペース区切りの char** 型に変換する, {"|'}
- * で囲った場合区切らない */
+/* char* 型の文字列をスペース区切りの char** 型に変換する
+ * , {"|'} で囲った場合区切らない */
 void input_analyse(char buf[], char* argv[]) {
   char* bp = buf;
   bp++;  // buf 先頭 = NULL のため
@@ -88,15 +86,21 @@ void input_analyse(char buf[], char* argv[]) {
 }
 
 int main() {
+  // 変数宣言・初期化
   char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
   char* bp;
   char* argv[LENGTH];
   pid_t pid, pid_wait;
   int ret;
+  char* username = getlogin();
+  char hostname[LENGTH]; gethostname(hostname, sizeof(hostname));
+  char cwd[LENGTH];
+
 
   while (1) {
-    /* 初期化 */
-    printf("$ ");
+    /* コマンド毎の初期化 */
+    getcwd(cwd, sizeof(cwd));
+    printf("[%s@%s %s]$ ", username, hostname, cwd);
     fflush(stdout);
     memset(buf, '\0', LENGTH);
     memset(argv, '\0', LENGTH);
@@ -113,19 +117,19 @@ int main() {
     if (*bp == '\0') continue;
 
     /* exit が入力されたら return 0 */
-    if (strcmp(bp, EXIT) == 0) return 0;
+    if (strcmp(bp, "exit") == 0) return 0;
 
     /* char* 型の文字列をスペース区切りの char** 型に変換する */
     // argv = (char**)malloc(LENGTH);
     input_analyse(buf, argv);
 
     /* test */
-    printf("argv[0]: %s\n", argv[0]);
-    printf("argv[1]: %s\n", argv[1]);
-    printf("argv[2]: %s\n", argv[2]);
+    //printf("argv[0]: %s\n", argv[0]);
+    //printf("argv[1]: %s\n", argv[1]);
+    //printf("argv[2]: %s\n", argv[2]);
 
     /* 実行 */
-    if (strcmp(argv[0], CD) == 0)
+    if (strcmp(argv[0], "cd") == 0)
       chdir(argv[1]);
     else {
       if ((pid = fork()) == 0) {
