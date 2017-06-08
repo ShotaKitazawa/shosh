@@ -9,12 +9,10 @@
 #define LENGTH 64
 const char* Exit = "exit\n";
 
-// char* 型の文字列をスペース区切りの char** 型に変換する
-char** input_analysis(char buf[]) {
+/* char* 型の文字列をスペース区切りの char** 型に変換する */
+void input_analysis(char buf[], char** argv) {
   char* cp = buf;
   cp++;  // buf 先頭 = NULL のため
-  char** return_argv = (char**)malloc(LENGTH);
-  char** argv = return_argv;
   int n = 0;
   *argv = (char*)malloc(LENGTH);
   while (*cp != '\0') {
@@ -41,26 +39,29 @@ char** input_analysis(char buf[]) {
   argv++;
   *argv = (char*)malloc(LENGTH);
   **argv = '\0';
-  return return_argv;
 }
+
 
 int main() {
   char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
   char* c;
-  char* cmd;
-  char** argv;
-  char* argc;
+  char* argv[LENGTH];
+  //char argc[LENGTH];
+  char *argc;
   int fd_stdin = fileno(stdin);
   pid_t pid, pid_wait;
   int ret;
 
   while (1) {
-    /* 読み込み */
+    /* 初期化 */
     printf("$ ");
     fflush(stdout);
-    c = buf;
     memset(buf, '\0', LENGTH);
+    memset(argv, '\0', LENGTH);
+    c = buf;
     *c = '\0';
+
+    /* Enter まで読み込み */
     do {
       c++;
       read(fd_stdin, c, 1);
@@ -78,25 +79,22 @@ int main() {
     /* exit が入力されたら return 0 */
     char* cp = buf;
     cp++;
-    // if (*cp == '\0') continue;
     if (strcmp(cp, Exit) == 0) return 0;
 
     /* char* 型の文字列をスペース区切りの char** 型に変換する */
-    argv = input_analysis(buf, argv);
+    //argv = (char**)malloc(LENGTH);
+    input_analysis(buf, argv);
 
     /* char* argc = argv[0] */
-    int n = 0;
-    while (**argv != '\0') {
-      *argc = **argv;
-      n++;
-      argc++;
-      (*argv)++;
-    }
-    while (n > 0) {
-      n--;
-      argc--;
-      (*argv)--;
-    }
+    argc = (char*)malloc(LENGTH);
+    //argv0_to_argc(*argv, argc);
+    strcpy(argc,argv[0]);
+
+    /* test */
+    printf("argc   : %s\n", argc);
+    printf("argv[0]: %s\n", argv[0]);
+    printf("argv[1]: %s\n", argv[1]);
+    printf("argv[2]: %s\n", argv[2]);
 
     /* 実行 */
     if ((pid = fork()) == 0) {
@@ -104,6 +102,12 @@ int main() {
       fflush(stdout);
     }
     pid_wait = wait(NULL);
+
+    /* free */
+    free(argc);
+    while(**argv == '\0'){
+      free((*argv)++);
+    }
   }
 
   return 0;
