@@ -4,18 +4,37 @@
 #include <unistd.h>
 
 #define LENGTH 64
-const char* EXIT = "exit\n";
+const char* EXIT = "exit";
 const char* CD = "cd";
 
-/* char* 型の文字列をスペース区切りの char** 型に変換する, {"|'} で囲った場合区切らない */
-void input_analysis(char buf[], char* argv[]) {
-  char* cp = buf;
-  cp++;  // buf 先頭 = NULL のため
+void input_read(char* bp) {
+  int fd_stdin = fileno(stdin);
+  do {
+    bp++;  // 先頭がNULLのため
+    read(fd_stdin, bp, 1);
+    if (*bp == 0x7f) {   // backspace
+      printf("\b\b\b");  // 3文字戻る (消したい1文字+BS記号2文字)
+      printf("   ");     // 3文字埋める
+      printf("\b\b\b");  // 3文字戻る
+      bp--;
+      if (*bp == '\0') bp++;
+    }
+    // printf("%x\n", *bp);  // デバッグ用
+    fflush(stdout);
+  } while (*bp != 0x0a);
+  *bp = '\0';
+}
+
+/* char* 型の文字列をスペース区切りの char** 型に変換する, {"|'}
+ * で囲った場合区切らない */
+void input_analyse(char buf[], char* argv[]) {
+  char* bp = buf;
+  bp++;  // buf 先頭 = NULL のため
   int n = 0;
   int flag = 0;
   *argv = (char*)malloc(LENGTH);
-  while (*cp != '\0') {
-    if (*cp == 0x20 && flag == 0) {  // space
+  while (*bp != '\0') {
+    if (*bp == 0x20 && flag == 0) {  // space
       **argv = '\0';
       while (n > 0) {
         n--;
@@ -23,16 +42,14 @@ void input_analysis(char buf[], char* argv[]) {
       }
       argv++;
       *argv = (char*)malloc(LENGTH);
-    }
-    else if (*cp == 0x22){ // "
+    } else if (*bp == 0x22) {  // "
       flag ^= 1;
-    }
-    else {
-      **argv = *cp;
+    } else {
+      **argv = *bp;
       (*argv)++;
       n++;
     }
-    cp++;
+    bp++;
   }
   **argv = '\0';
   while (n > 0) {
@@ -43,9 +60,8 @@ void input_analysis(char buf[], char* argv[]) {
 
 int main() {
   char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
-  char* c;
+  char* bp;
   char* argv[LENGTH];
-  int fd_stdin = fileno(stdin);
   pid_t pid, pid_wait;
   int ret;
 
@@ -55,33 +71,19 @@ int main() {
     fflush(stdout);
     memset(buf, '\0', LENGTH);
     memset(argv, '\0', LENGTH);
-    c = buf;
-    *c = '\0';
+    bp = buf;
+    *bp = '\0';
 
     /* Enter まで読み込み */
-    do {
-      c++;
-      read(fd_stdin, c, 1);
-      if (*c == 0x7f) {    // backspace
-        printf("\b\b\b");  // 3文字戻る (消したい1文字+BS記号2文字)
-        printf("   ");     // 3文字埋める
-        printf("\b\b\b");  // 3文字戻る
-        c--;
-        if (*c == '\0') c++;
-      }
-      printf("%x\n", *c); // デバッグ用
-      fflush(stdout);
-    } while (*c != 0x0a);
-    *c = '\0';
+    input_read(bp);
 
     /* exit が入力されたら return 0 */
-    char* cp = buf;
-    cp++;
-    if (strcmp(cp, EXIT) == 0) return 0;
+    bp++;
+    if (strcmp(bp, EXIT) == 0) return 0;
 
     /* char* 型の文字列をスペース区切りの char** 型に変換する */
     // argv = (char**)malloc(LENGTH);
-    input_analysis(buf, argv);
+    input_analyse(buf, argv);
 
     /* test */
     printf("argv[0]: %s\n", argv[0]);
@@ -93,15 +95,15 @@ int main() {
       chdir(argv[1]);
     else {
       if ((pid = fork()) == 0) {
-        if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n"); // 動かない謎
+        if ((ret = execvp(argv[0], argv)) == 0)
+          printf("Error\n");  // 動かない謎
         fflush(stdout);
       }
       pid_wait = wait(NULL);
-
-      /* free */
-      while (**argv == '\0') {
-        free((*argv)++);
-      }
+    }
+    /* free */
+    while (**argv == '\0') {
+      free((*argv)++);
     }
   }
 
