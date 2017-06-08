@@ -17,7 +17,7 @@ void input_read(char* bp) {
       bp--;
       if (*bp == '\0') bp++;
     }
-    // printf("%x\n", *bp);  // デバッグ用
+    //printf("%x\n", *bp);  // デバッグ用
     fflush(stdout);
   } while (*bp != 0x0a);
   *bp = '\0';
