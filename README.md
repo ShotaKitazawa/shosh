@@ -1,12 +1,12 @@
 # 聞く
 
+- alias コマンドが効かない
+- C-c , C-d が元シェル依存
 - 以下が動かない
-
 ```
 if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
 ```
 
-- alias コマンドが効かない
 
 # TODO
 
