@@ -30,11 +30,18 @@ void input_read(char* bp) {
 void input_analyse(char buf[], char* argv[]) {
   char* bp = buf;
   bp++;  // buf 先頭 = NULL のため
-  int n = 0;
-  int flag = 0;
   *argv = (char*)malloc(LENGTH);
+  int n = 0;
+  int dq_flag = 0;
+  int sq_flag = 0;
+  int dollar_flag = 0;
+  int env_flag = 0;
+  char env_buf[LENGTH];
+  char* envp = env_buf;
+  char env_return[LENGTH];
+
   while (*bp != '\0') {
-    if (*bp == 0x20 && flag == 0) {  // space
+    if (*bp == 0x20 && !(dq_flag || sq_flag)) {  // space
       **argv = '\0';
       while (n > 0) {
         n--;
@@ -43,7 +50,29 @@ void input_analyse(char buf[], char* argv[]) {
       argv++;
       *argv = (char*)malloc(LENGTH);
     } else if (*bp == 0x22) {  // "
-      flag ^= 1;
+      dq_flag ^= 1;
+    } else if (*bp == 0x24 && !sq_flag) {  // $
+      dollar_flag = 1;
+    } else if (*bp == 0x27) {  // '
+      sq_flag ^= 1;
+    } else if (*bp == 0x7b && dollar_flag) {  // ${HOGE} の { の部分
+      env_flag = 1;
+    } else if (*bp == 0x7d && dollar_flag && env_flag) {  // ${HOGE} の } の部分
+      strcpy(env_return, getenv(env_buf));
+      envp = env_return;
+      while (*envp != '\0') {
+        **argv = *envp;
+        (*argv)++;
+        envp++;
+        n++;
+      }
+      memset(env_buf, '\0', LENGTH);
+      envp = env_buf;
+      dollar_flag = 0;
+      env_flag = 0;
+    } else if (env_flag) {  // ${HOGE} の HOGE の部分
+      *envp = *bp;
+      envp++;
     } else {
       **argv = *bp;
       (*argv)++;
@@ -77,8 +106,13 @@ int main() {
     /* Enter まで読み込み */
     input_read(bp);
 
-    /* exit が入力されたら return 0 */
+    /* 入力は buff[1] から */
     bp++;
+
+    /* 入力がなかったら continue */
+    if (*bp == '\0') continue;
+
+    /* exit が入力されたら return 0 */
     if (strcmp(bp, EXIT) == 0) return 0;
 
     /* char* 型の文字列をスペース区切りの char** 型に変換する */
@@ -97,14 +131,13 @@ int main() {
       if ((pid = fork()) == 0) {
         if ((ret = execvp(argv[0], argv)) == 0)
           printf("Error\n");  // 動かない謎
-        fflush(stdout);
       }
       pid_wait = wait(NULL);
     }
+    fflush(stdout);
+
     /* free */
-    while (**argv == '\0') {
-      free((*argv)++);
-    }
+    while (**argv == '\0') free((*argv)++);
   }
 
   return 0;
