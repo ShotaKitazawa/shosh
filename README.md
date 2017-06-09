@@ -1,15 +1,17 @@
-# 聞く
+# TODO
 
 - alias コマンドが効かない
+  - alias テーブルをシェル内部に持つため
 - C-c が一回しか動かない
-  - そもそもSignalを無効化 <コンソールで動くエディタを作る>
+  - そもそもSignalを無効化
+    - http://qiita.com/advent-calendar/2016/make_editor (コンソールで動くエディタを作る)
+
 - 以下が動かない
 ```
 if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
 ```
 
-
-# TODO
+# タスク
 
 - 完: プロンプトを表示してユーザのコマンド入力を受け付ける．
 
@@ -20,17 +22,12 @@ if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
 - 完: 環境変数の展開 (${HOGE} > hogehoge)
     - {} が無いとダメ
 
-- Signal有効化
-  - ジョブ管理（フォアグラウンド／バックグラウンド切り替え，
-    - ジョブの終了，サスペンド機能，etc…）を行う．
-  - C-c, C-d
-
 - パイプ実装
 
 ---
 
-- 'C-{f,b,a,e,<-,->}' の実装
+- C-{f,b,a,e}, 矢印左右 の実装
 
 - .shoshrc の作成
 
-- .shosh_history と矢印上下の実装
+- .shosh_history と C-{p,n}, 矢印上下 の実装
