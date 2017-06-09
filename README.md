@@ -2,7 +2,7 @@
 
 - alias コマンドが効かない
 - C-c が一回しか動かない
-- C-d を 3 回押すと exit
+  - そもそもSignalを無効化 <コンソールで動くエディタを作る>
 - 以下が動かない
 ```
 if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");

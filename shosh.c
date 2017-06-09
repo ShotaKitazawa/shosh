@@ -27,6 +27,10 @@ int main() {
     printf("failed to set signal handler.n");
     exit(1);
   }
+   if (SIG_ERR == signal(SIGTSTP, sigcatch)) {
+    printf("failed to set signal handler.n");
+    exit(1);
+  }
 
   while (1) {
     /* コマンド毎の初期化 */
@@ -66,6 +70,7 @@ int main() {
       if ((pid = fork()) == 0) {
         if ((ret = execvp(argv[0], argv)) == 0)
           printf("Error\n");  // 動かない謎
+          exit(0);
       }
       pid_wait = wait(NULL);
     }
@@ -82,10 +87,12 @@ void sigcatch(int sig) {
   // printf("called sigcatch\n");
   switch (sig) {
     case 2:  // C-c
-      printf("\n");
-      main();
-      exit(0);
+      //printf("SIG\n");
+      return;
+      //main();
       break;
+    case 20: // C-z
+      return;
     default:
       break;
   }
@@ -95,7 +102,10 @@ void input_read(char* bp) {
   int fd_stdin = fileno(stdin);
   do {
     bp++;  // 先頭がNULLのため
-    read(fd_stdin, bp, 1);
+    //read(fd_stdin, bp, 1);
+    *bp = getchar();
+    printf("%x\n", *bp);  // デバッグ用
+        fflush(stdout);
     if (*bp == 0x7f) {   // backspace
       printf("\b\b\b");  // 3文字戻る (消したい1文字+BS記号2文字)
       printf("   ");     // 3文字埋める
@@ -103,25 +113,24 @@ void input_read(char* bp) {
       bp--;
       if (*bp == '\0') bp++;
     }
-    if (*bp == 0x00) {  // C-d && 文字入力なし
+    //if (*bp == 0x03){exit(1);}
+    if (*bp == EOF) {  // C-d && 文字入力なし
       bp--;
       if (*bp == '\0') {
         printf("\n");
         fflush(stdout);
         exit(0);
       }
-      else{
-        bp++;
-      }
+      bp++;
     }
-    //printf("%2x\n", *bp);  // デバッグ用
     fflush(stdout);
   } while (*bp != 0x0a);
   *bp = '\0';
 }
 
-/* char* 型の文字列をスペース区切りの char** 型に変換する
- * , {"|'} で囲った場合区切らない */
+/* char* 型の文字列をスペース区切りの char** 型に変換する,
+ * {"|'} で囲った場合区切らない,
+ * ${HOGE} の展開 */
 void input_analyse(char buf[], char* argv[]) {
   char* bp = buf;
   bp++;  // buf 先頭 = NULL のため
