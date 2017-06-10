@@ -1,10 +1,7 @@
 # TODO
 
-- alias コマンドが効かない
-  - alias テーブルをシェル内部に持つため
-- C-c が一回しか動かない
-  - そもそもSignalを無効化
-    - http://qiita.com/advent-calendar/2016/make_editor (コンソールで動くエディタを作る)
+- 子プロセス実行時、C-z が効かない
+  - C-c は効くが、C-z を押した後は C-c も効かなくなる
 
 - 以下が動かない
 ```
@@ -20,14 +17,24 @@ if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
 - 完: コマンドの実行が終わると再びプロンプトを表示する．
 
 - 完: 環境変数の展開 (${HOGE} > hogehoge)
-    - {} が無いとダメ
+    - TODO: {} が無いとダメ
 
 - パイプ実装
 
 ---
 
-- C-{f,b,a,e}, 矢印左右 の実装
+- C-c による入力のやりなおし
+
+- C-{f,b,a,e}, 矢印左右
 
 - .shoshrc の作成
 
-- .shosh_history と C-{p,n}, 矢印上下 の実装
+- .shosh_history と C-{p,n}, 矢印上下
+
+- $(hoge) or `hoge` によるコマンド実行
+    - fork して raw モードで実行、実行結果を親プロセスへ渡す
+      - その間親プロセスを wait
+
+- alias コマンド用テーブルの実装
+  - alias テーブルをシェル内部に持つため
+

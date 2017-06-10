@@ -3,8 +3,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <termios.h>
 
 #define LENGTH 64
+
+struct termios CookedTermIos;  // cooked モード用
+struct termios RawTermIos;     // raw モード用
 
 void sigcatch(int sig);
 void input_read(char* bp);
@@ -22,12 +26,12 @@ int main() {
   gethostname(hostname, sizeof(hostname));
   char cwd[LENGTH];
 
-  /* SIGINT (C-c) シグナル時に Terminate > 入力消去 に変更 */
-   if (SIG_ERR == signal(SIGINT, sigcatch)) {
+  /* シェルに対する SIGINT, SIGTSTP シグナルの無効化 */
+  if (SIG_ERR == signal(SIGINT, sigcatch)) {
     printf("failed to set signal handler.n");
     exit(1);
   }
-   if (SIG_ERR == signal(SIGTSTP, sigcatch)) {
+  if (SIG_ERR == signal(SIGTSTP, sigcatch)) {
     printf("failed to set signal handler.n");
     exit(1);
   }
@@ -36,7 +40,6 @@ int main() {
     /* コマンド毎の初期化 */
     getcwd(cwd, sizeof(cwd));
     printf("[%s@%s %s]$ ", username, hostname, cwd);
-    fflush(stdout);
     memset(buf, '\0', LENGTH);
     memset(argv, '\0', LENGTH);
     bp = buf;
@@ -68,64 +71,101 @@ int main() {
       chdir(argv[1]);
     else {
       if ((pid = fork()) == 0) {
-        if ((ret = execvp(argv[0], argv)) == 0)
+        if ((ret = execvp(argv[0], argv)) == 0) {
           printf("Error\n");  // 動かない謎
-          exit(0);
+        }
+        exit(0);
       }
       pid_wait = wait(NULL);
     }
-    fflush(stdout);
 
     /* free */
     while (**argv == '\0') free((*argv)++);
   }
-
-  return 0;
 }
 
 void sigcatch(int sig) {
   // printf("called sigcatch\n");
   switch (sig) {
     case 2:  // C-c
-      //printf("SIG\n");
       return;
-      //main();
-      break;
-    case 20: // C-z
+    case 20:  // C-z
       return;
     default:
       break;
   }
+  return;
 }
 
 void input_read(char* bp) {
+  /* 初期化 */
+  int enter_flag = 0;
+
+  /* cooked, raw モードの状態を保存 */
+  tcgetattr(STDIN_FILENO, &CookedTermIos);
+  RawTermIos = CookedTermIos;
+  cfmakeraw(&RawTermIos);
+
+  /* 端末状態変更: Cooked > Raw */
+  tcsetattr(STDIN_FILENO, 0, &RawTermIos);
+
   int fd_stdin = fileno(stdin);
   do {
     bp++;  // 先頭がNULLのため
-    //read(fd_stdin, bp, 1);
+
+    /* 入力 */
     *bp = getchar();
-    printf("%x\n", *bp);  // デバッグ用
-        fflush(stdout);
-    if (*bp == 0x7f) {   // backspace
-      printf("\b\b\b");  // 3文字戻る (消したい1文字+BS記号2文字)
-      printf("   ");     // 3文字埋める
-      printf("\b\b\b");  // 3文字戻る
-      bp--;
-      if (*bp == '\0') bp++;
+
+    /* デバッグ用 */
+    // printf("%x", *bp);
+    // fflush(stdout);
+
+    /* もし図形文字ならば出力 */
+    if ((*bp & 0xe0) > 0x00 && *bp != 0x7f) {
+      putchar(*bp);
     }
-    //if (*bp == 0x03){exit(1);}
-    if (*bp == EOF) {  // C-d && 文字入力なし
-      bp--;
-      if (*bp == '\0') {
-        printf("\n");
-        fflush(stdout);
-        exit(0);
+
+    /* 出力文字以外の場合、キーごとの処理後 *bp='\0';bp--; */
+    else {
+      /* enter */
+      if (*bp == 0x0d) enter_flag++;
+      /* backspace */
+      if (*bp == 0x7f) {
+        bp--;
+        if (*bp != '\0') {
+          *bp = '\0';
+          printf("\b");  // 1文字戻る
+          printf(" ");   // 1文字埋める
+          printf("\b");  // 1文字戻る
+        } else {
+          bp++;
+        }
       }
-      bp++;
+      /* C-d && 文字入力なし */
+      if (*bp == 0x04) {
+        bp--;
+        if (*bp == '\0') {
+          /* 端末状態変更: Raw > Cooked */
+          tcsetattr(STDIN_FILENO, 0, &CookedTermIos);
+          printf("\n");
+          exit(0);
+        }
+        bp++;
+      }
+      *bp = '\0';
+      bp--;
     }
-    fflush(stdout);
-  } while (*bp != 0x0a);
+  } while (!enter_flag);  // Enter
+
+  /* NULL Terminate */
+  bp++;
   *bp = '\0';
+
+  /* 端末状態変更: Raw > Cooked */
+  tcsetattr(STDIN_FILENO, 0, &CookedTermIos);
+  printf("\n");
+
+  return;
 }
 
 /* char* 型の文字列をスペース区切りの char** 型に変換する,
