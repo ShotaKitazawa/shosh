@@ -121,7 +121,10 @@ void input_read(char* bp) {
     bp++;  // 先頭がNULLのため
 
     /* 入力 */
+    // if (*bp == '\0'){
     *bp = getchar();
+    // } else
+    // TODO: *bp が NULL でない > Ctrl+f でカーソルを移動してきた > 1文字ずつ *bp を前にずらす
 
     /* デバッグ用 */
     // printf("%x", *bp);
