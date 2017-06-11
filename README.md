@@ -23,13 +23,15 @@ if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
 
 ---
 
-- C-c による入力のやりなおし
+- 完: C-c による入力のやりなおし
 
-- C-{f,b,a,e}, 矢印左右
+- C-{f,b,a,e}
+  - 矢印左右
 
 - .shoshrc の作成
 
-- .shosh_history と C-{p,n}, 矢印上下
+- .shosh_history と C-{p,n}
+  -  矢印上下
 
 - $(hoge) or `hoge` によるコマンド実行
     - fork して raw モードで実行、実行結果を親プロセスへ渡す

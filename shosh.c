@@ -1,30 +1,29 @@
-#include <string.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
+#include <string.h>
 #include <termios.h>
+#include <unistd.h>
 
 #define LENGTH 64
 
+/* Terminal mode 定義*/
 struct termios CookedTermIos;  // cooked モード用
 struct termios RawTermIos;     // raw モード用
 
+/* 関数の定義 */
 void sigcatch(int sig);
+void print_env();
 void input_read(char* bp);
 void input_analyse(char buf[], char* argv[]);
 
 int main() {
   /* 変数宣言・初期化 */
-  char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
-  char* bp;
-  char* argv[LENGTH];
-  pid_t pid, pid_wait;
-  int ret;
-  char* username = getlogin();
-  char hostname[LENGTH];
-  gethostname(hostname, sizeof(hostname));
-  char cwd[LENGTH];
+  char buf[LENGTH];     // 0番目はNULL (BackSpace判定のため)
+  char* bp;             // buf へのポインタ
+  char* argv[LENGTH];   // buf をスペース区切りにしたもの
+  pid_t pid, pid_wait;  // fork, wait 用
+  int ret;              // 子プロセス exec 時の値
 
   /* シェルに対する SIGINT, SIGTSTP シグナルの無効化 */
   if (SIG_ERR == signal(SIGINT, sigcatch)) {
@@ -38,8 +37,7 @@ int main() {
 
   while (1) {
     /* コマンド毎の初期化 */
-    getcwd(cwd, sizeof(cwd));
-    printf("[%s@%s %s]$ ", username, hostname, cwd);
+    print_env();
     memset(buf, '\0', LENGTH);
     memset(argv, '\0', LENGTH);
     bp = buf;
@@ -97,6 +95,15 @@ void sigcatch(int sig) {
   return;
 }
 
+void print_env() {
+  char* username = getlogin();
+  char hostname[LENGTH];
+  gethostname(hostname, sizeof(hostname));
+  char cwd[LENGTH];
+  getcwd(cwd, sizeof(cwd));
+  printf("[%s@%s %s]$ ", username, hostname, cwd);
+}
+
 void input_read(char* bp) {
   /* 初期化 */
   int enter_flag = 0;
@@ -140,6 +147,18 @@ void input_read(char* bp) {
         } else {
           bp++;
         }
+      }
+      /* C-c */
+      if (*bp == 0x03) {
+        tcsetattr(STDIN_FILENO, 0, &CookedTermIos);
+        printf("\n");
+        print_env();
+        while (*bp != '\0'){
+          *bp = '\0';
+          bp--;
+        }
+        bp++;
+        tcsetattr(STDIN_FILENO, 0, &RawTermIos);
       }
       /* C-d && 文字入力なし */
       if (*bp == 0x04) {
