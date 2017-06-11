@@ -25,6 +25,9 @@ if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
 
 - 完: C-c による入力のやりなおし
 
+- ~ (チルダ) の実装
+  - [ ~ ] > [ $HOME ] で解釈
+
 - C-{f,b,a,e}
   - 矢印左右
 
@@ -37,6 +40,10 @@ if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
     - fork して raw モードで実行、実行結果を親プロセスへ渡す
       - その間親プロセスを wait
 
+- * の実装
+  - hoge.* で hoge.txt, hoge.md ...
+
 - alias コマンド用テーブルの実装
   - alias テーブルをシェル内部に持つため
 
+- jobs コマンド等、ジョブ管理の仕組の実装
