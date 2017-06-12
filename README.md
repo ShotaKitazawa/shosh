@@ -1,7 +1,7 @@
 # TODO
 
 - 子プロセス実行時、C-z が効かない
-  - C-c は効くが、C-z を押した後は C-c も効かなくなる
+  - どのように job 管理を実装するか
 
 - 以下が動かない
 ```
@@ -26,7 +26,8 @@ if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
 - 完: C-c による入力のやりなおし
 
 - ~ (チルダ) の実装
-  - [ ~ ] > [ $HOME] で解釈
+  - ~ > $HOME
+  - ~kitazawa > kitazawa の $HOME
 
 - C-{f,b,a,e}
   - 矢印左右
