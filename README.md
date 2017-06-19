@@ -20,6 +20,7 @@ if ((ret = execvp(argv[0], argv)) == 0) printf("Error\n");
     - TODO: {} が無いとダメ
 
 - パイプ実装
+  - 再帰がよさげ？
 
 ---
 
