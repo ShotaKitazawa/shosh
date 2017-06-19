@@ -69,8 +69,8 @@ int main() {
       chdir(argv[1]);
     else {
       if ((pid = fork()) == 0) {
-        if ((ret = execvp(argv[0], argv)) == 0) {
-          printf("Error\n");  // 動かない謎
+        if ((ret = execvp(argv[0], argv)) < 0) {
+          printf("-shosh: %s: command not found\n", argv[0]);
         }
         exit(0);
       }
