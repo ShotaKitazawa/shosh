@@ -22,6 +22,8 @@ void input_read(char* bp);
 void input_analyse(char buf[], char** argv);
 void argv_execute(char** argv);
 void argv_free(char** argv);
+void argv_exec_return(char** argv);
+
 
 int main() {
   /* 変数宣言・初期化 */
@@ -63,15 +65,15 @@ int main() {
     input_analyse(buf, argv);
 
     /* test */
-    printf("argv[0]: %s\n", argv[0]);
-    printf("argv[1]: %s\n", argv[1]);
-    printf("argv[2]: %s\n", argv[2]);
+    //printf("argv[0]: %s\n", argv[0]);
+    //printf("argv[1]: %s\n", argv[1]);
+    //printf("argv[2]: %s\n", argv[2]);
 
     /* 実行 */
     argv_execute(argv);
 
     /* free */
-    argv_free(argv);
+    //argv_free(argv);
   }
 }
 
@@ -191,21 +193,22 @@ void input_analyse(char buf[], char** argv) {
   char* bp = buf;
   bp++;  // buf 先頭 = NULL のため
   *argv = (char*)malloc(LENGTH);
-  int n = 0;
-  int dq_flag = 0;
-  int sq_flag = 0;
-  int dollar_flag = 0;
-  int env_flag = 0;
+  int word_count = 0; // spece で区切られた各文字列の文字数
+  int space_count = 0; // spece の数
+  int dq_flag = 0; // " (double quotation) flag
+  int sq_flag = 0; // ' (single quotation) flag
+  int dollar_flag = 0; // $ flag
+  int env_flag = 0; // environment_variable flag
   char env_buf[LENGTH];
   char* envp = env_buf;
   char env_return[LENGTH];
-  char*** argvs;
 
   while (*bp != '\0') {
     if (*bp == 0x20 && !(dq_flag || sq_flag)) {  // space
+      space_count++;
       **argv = '\0';
-      while (n > 0) {
-        n--;
+      while (word_count > 0) {
+        word_count--;
         (*argv)--;
       }
       argv++;
@@ -217,7 +220,22 @@ void input_analyse(char buf[], char** argv) {
     } else if (*bp == 0x27) {  // '
       sq_flag ^= 1;
     } else if (*bp == 0x7c) {  // |
-      *argvs = (char**)malloc(LENGTH);
+      /* NULL Terminate & ポインタを先頭に戻す*/
+      **argv = '\0';
+      while (word_count > 0) {
+        printf("word_count\n");
+        word_count--;
+        (*argv)--;
+      }
+      while (space_count > 0){
+        printf("space_count\n");
+        space_count--;
+        argv--;
+      }
+      argv_exec_return(argv);
+
+      // argv を作り直す (free, malloc); 各変数初期化
+      // 上の返り値 (パイプまでのargvの実行結果) を パイプ後の argv[1] にstrcpy
     } else if (*bp == 0x7b && dollar_flag) {  // ${HOGE} の { の部分
       env_flag = 1;
     } else if (*bp == 0x7d && dollar_flag && env_flag) {  // ${HOGE} の } の部分
@@ -227,7 +245,7 @@ void input_analyse(char buf[], char** argv) {
         **argv = *envp;
         (*argv)++;
         envp++;
-        n++;
+        word_count++;
       }
       memset(env_buf, '\0', LENGTH);
       envp = env_buf;
@@ -239,17 +257,21 @@ void input_analyse(char buf[], char** argv) {
     } else {
       **argv = *bp;
       (*argv)++;
-      n++;
+      word_count++;
     }
     bp++;
   }
   **argv = '\0';
-  while (n > 0) {
-    n--;
+  while (word_count > 0) {
+    word_count--;
     (*argv)--;
   }
   argv++;
   *argv = '\0';
+}
+
+/* In: char** argv (コマンド), Out: 実行結果*/
+void argv_exec_return(char** argv){
 }
 
 void argv_execute(char** argv) {
@@ -259,7 +281,8 @@ void argv_execute(char** argv) {
     else if ((ret = chdir(argv[1])) < 0)
       printf("-shosh: cd: %s: No such file or directory\n", argv[1]);
   } else {
-    if ((pid = fork()) == 0) {
+    if ((pid = fork()) < 0) perror("### Fork failed! ###");
+    else if (pid == 0){
       if ((ret = execvp(argv[0], argv)) < 0) {
         printf("-shosh: %s: command not found\n", argv[0]);
       }
@@ -272,5 +295,3 @@ void argv_execute(char** argv) {
 void argv_free(char** argv) {
   while (**argv == '\0') free((*argv)++);
 }
-
-void argvs_free(char*** argvs) {}
