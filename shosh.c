@@ -11,19 +11,23 @@
 struct termios CookedTermIos;  // cooked モード用
 struct termios RawTermIos;     // raw モード用
 
+/* グローバル変数 */
+pid_t pid, pid_wait;  // fork, wait 用
+int ret;              // 子プロセス exec 時の値
+
 /* 関数の定義 */
 void sigcatch(int sig);
 void print_env();
 void input_read(char* bp);
 void input_analyse(char buf[], char* argv[]);
+void argv_execute(char* argv[]);
+void argv_free(char* argv[]);
 
 int main() {
   /* 変数宣言・初期化 */
-  char buf[LENGTH];     // 0番目はNULL (BackSpace判定のため)
-  char* bp;             // buf へのポインタ
-  char* argv[LENGTH];   // buf をスペース区切りにしたもの
-  pid_t pid, pid_wait;  // fork, wait 用
-  int ret;              // 子プロセス exec 時の値
+  char buf[LENGTH];    // 0番目はNULL (BackSpace判定のため)
+  char* bp;            // buf へのポインタ
+  char* argv[LENGTH];  // buf をスペース区切りにしたもの
 
   /* シェルに対する SIGINT, SIGTSTP シグナルの無効化 */
   if (SIG_ERR == signal(SIGINT, sigcatch)) {
@@ -65,20 +69,10 @@ int main() {
     // printf("argv[2]: %s\n", argv[2]);
 
     /* 実行 */
-    if (strcmp(argv[0], "cd") == 0)
-      chdir(argv[1]);
-    else {
-      if ((pid = fork()) == 0) {
-        if ((ret = execvp(argv[0], argv)) < 0) {
-          printf("-shosh: %s: command not found\n", argv[0]);
-        }
-        exit(0);
-      }
-      pid_wait = wait(NULL);
-    }
+    argv_execute(argv);
 
     /* free */
-    while (**argv == '\0') free((*argv)++);
+    argv_free(argv);
   }
 }
 
@@ -124,7 +118,8 @@ void input_read(char* bp) {
     // if (*bp == '\0'){
     *bp = getchar();
     // } else
-    // TODO: *bp が NULL でない > Ctrl+f でカーソルを移動してきた > 1文字ずつ *bp を前にずらす
+    // TODO: *bp が NULL でない > Ctrl+f でカーソルを移動してきた > 1文字ずつ
+    // *bp を前にずらす
 
     /* デバッグ用 */
     // printf("%x", *bp);
@@ -156,7 +151,7 @@ void input_read(char* bp) {
         tcsetattr(STDIN_FILENO, 0, &CookedTermIos);
         printf("\n");
         print_env();
-        while (*bp != '\0'){
+        while (*bp != '\0') {
           *bp = '\0';
           bp--;
         }
@@ -191,7 +186,7 @@ void input_read(char* bp) {
 }
 
 /* char* 型の文字列をスペース区切りの char** 型に変換する,
- * {"|'} で囲った場合区切らない,
+ * {",'} で囲った場合区切らない,
  * ${HOGE} の展開 */
 void input_analyse(char buf[], char* argv[]) {
   char* bp = buf;
@@ -205,6 +200,7 @@ void input_analyse(char buf[], char* argv[]) {
   char env_buf[LENGTH];
   char* envp = env_buf;
   char env_return[LENGTH];
+  char*** argvs;
 
   while (*bp != '\0') {
     if (*bp == 0x20 && !(dq_flag || sq_flag)) {  // space
@@ -221,6 +217,8 @@ void input_analyse(char buf[], char* argv[]) {
       dollar_flag = 1;
     } else if (*bp == 0x27) {  // '
       sq_flag ^= 1;
+    } else if (*bp == 0x7c) { // |
+      *argvs = (char**)malloc(LENGTH);
     } else if (*bp == 0x7b && dollar_flag) {  // ${HOGE} の { の部分
       env_flag = 1;
     } else if (*bp == 0x7d && dollar_flag && env_flag) {  // ${HOGE} の } の部分
@@ -251,4 +249,25 @@ void input_analyse(char buf[], char* argv[]) {
     n--;
     (*argv)--;
   }
+}
+
+void argv_execute(char* argv[]) {
+  if (strcmp(argv[0], "cd") == 0)
+    chdir(argv[1]);
+  else {
+    if ((pid = fork()) == 0) {
+      if ((ret = execvp(argv[0], argv)) < 0) {
+        printf("-shosh: %s: command not found\n", argv[0]);
+      }
+      exit(0);
+    }
+    pid_wait = wait(NULL);
+  }
+}
+
+void argv_free(char* argv[]) {
+  while (**argv == '\0') free((*argv)++);
+}
+
+void argvs_free(char*** argvs){
 }
