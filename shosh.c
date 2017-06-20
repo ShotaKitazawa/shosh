@@ -19,15 +19,15 @@ int ret;              // 子プロセス exec 時の値
 void sigcatch(int sig);
 void print_env();
 void input_read(char* bp);
-void input_analyse(char buf[], char* argv[]);
-void argv_execute(char* argv[]);
-void argv_free(char* argv[]);
+void input_analyse(char buf[], char** argv);
+void argv_execute(char** argv);
+void argv_free(char** argv);
 
 int main() {
   /* 変数宣言・初期化 */
-  char buf[LENGTH];    // 0番目はNULL (BackSpace判定のため)
-  char* bp;            // buf へのポインタ
-  char* argv[LENGTH];  // buf をスペース区切りにしたもの
+  char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
+  char* bp;          // buf へのポインタ
+  char** argv;       // buf をスペース区切りにしたもの
 
   /* シェルに対する SIGINT, SIGTSTP シグナルの無効化 */
   if (SIG_ERR == signal(SIGINT, sigcatch)) {
@@ -43,7 +43,7 @@ int main() {
     /* コマンド毎の初期化 */
     print_env();
     memset(buf, '\0', LENGTH);
-    memset(argv, '\0', LENGTH);
+    argv = (char**)malloc(LENGTH);
     bp = buf;
     *bp = '\0';
 
@@ -60,13 +60,12 @@ int main() {
     if (strcmp(bp, "exit") == 0) exit(0);
 
     /* char* 型の文字列をスペース区切りの char** 型に変換する */
-    // argv = (char**)malloc(LENGTH);
     input_analyse(buf, argv);
 
     /* test */
-    // printf("argv[0]: %s\n", argv[0]);
-    // printf("argv[1]: %s\n", argv[1]);
-    // printf("argv[2]: %s\n", argv[2]);
+    printf("argv[0]: %s\n", argv[0]);
+    printf("argv[1]: %s\n", argv[1]);
+    printf("argv[2]: %s\n", argv[2]);
 
     /* 実行 */
     argv_execute(argv);
@@ -188,7 +187,7 @@ void input_read(char* bp) {
 /* char* 型の文字列をスペース区切りの char** 型に変換する,
  * {",'} で囲った場合区切らない,
  * ${HOGE} の展開 */
-void input_analyse(char buf[], char* argv[]) {
+void input_analyse(char buf[], char** argv) {
   char* bp = buf;
   bp++;  // buf 先頭 = NULL のため
   *argv = (char*)malloc(LENGTH);
@@ -217,7 +216,7 @@ void input_analyse(char buf[], char* argv[]) {
       dollar_flag = 1;
     } else if (*bp == 0x27) {  // '
       sq_flag ^= 1;
-    } else if (*bp == 0x7c) { // |
+    } else if (*bp == 0x7c) {  // |
       *argvs = (char**)malloc(LENGTH);
     } else if (*bp == 0x7b && dollar_flag) {  // ${HOGE} の { の部分
       env_flag = 1;
@@ -249,12 +248,17 @@ void input_analyse(char buf[], char* argv[]) {
     n--;
     (*argv)--;
   }
+  argv++;
+  *argv = '\0';
 }
 
-void argv_execute(char* argv[]) {
-  if (strcmp(argv[0], "cd") == 0)
-    chdir(argv[1]);
-  else {
+void argv_execute(char** argv) {
+  if (strcmp(argv[0], "cd") == 0) {
+    if (!argv[1])
+      chdir(getenv("HOME"));
+    else if ((ret = chdir(argv[1])) < 0)
+      printf("-shosh: cd: %s: No such file or directory\n", argv[1]);
+  } else {
     if ((pid = fork()) == 0) {
       if ((ret = execvp(argv[0], argv)) < 0) {
         printf("-shosh: %s: command not found\n", argv[0]);
@@ -265,9 +269,8 @@ void argv_execute(char* argv[]) {
   }
 }
 
-void argv_free(char* argv[]) {
+void argv_free(char** argv) {
   while (**argv == '\0') free((*argv)++);
 }
 
-void argvs_free(char*** argvs){
-}
+void argvs_free(char*** argvs) {}
