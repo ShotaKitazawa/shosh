@@ -83,11 +83,12 @@ int main() {
 }
 
 void sigcatch(int sig) {
-  // printf("called sigcatch\n");
+  //printf("called sigcatch: %d\n", sig);
   switch (sig) {
     case 2:  // C-c
       return;
-    case 20:  // C-z
+    case 18:  // C-z
+        printf("%d\n",getpid());
       return;
     default:
       break;
@@ -98,8 +99,8 @@ void sigcatch(int sig) {
 void print_env() {
   char* username = getlogin();
   char hostname[LENGTH];
-  gethostname(hostname, sizeof(hostname));
   char cwd[LENGTH];
+  gethostname(hostname, sizeof(hostname));
   getcwd(cwd, sizeof(cwd));
   printf("[%s@%s %s]$ ", username, hostname, cwd);
 }
