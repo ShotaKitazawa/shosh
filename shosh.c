@@ -7,6 +7,9 @@
 
 #define LENGTH 64
 
+/* TODO 表示 */
+const char* URL = "https://github.com/ShotaKitazawa/shosh";
+
 /* Terminal mode 定義*/
 struct termios CookedTermIos;  // cooked モード用
 struct termios RawTermIos;     // raw モード用
@@ -123,8 +126,8 @@ void input_read(char* bp) {
     // *bp を前にずらす
 
     /* デバッグ用 */
-    // printf("%x", *bp);
-    // fflush(stdout);
+    //printf("%x", *bp);
+    //fflush(stdout);
 
     /* もし図形文字ならば出力 */
     if ((*bp & 0xe0) > 0x00 && *bp != 0x7f) {
@@ -133,10 +136,9 @@ void input_read(char* bp) {
 
     /* 出力文字以外の場合、キーごとの処理後 *bp='\0';bp--; */
     else {
-      /* enter */
-      if (*bp == 0x0d) enter_flag++;
-      /* backspace */
-      if (*bp == 0x7f) {
+      if (*bp == 0x0d){ // enter
+        enter_flag++;
+      }if (*bp == 0x7f) { // backspace
         bp--;
         if (*bp != '\0') {
           *bp = '\0';
@@ -146,9 +148,9 @@ void input_read(char* bp) {
         } else {
           bp++;
         }
-      }
-      /* C-c */
-      if (*bp == 0x03) {
+      }if (*bp == 0x09) { // Tab
+        //TODO
+      }if (*bp == 0x03) { // Ctrl + c
         tcsetattr(STDIN_FILENO, 0, &CookedTermIos);
         printf("\n");
         print_env();
@@ -158,9 +160,7 @@ void input_read(char* bp) {
         }
         bp++;
         tcsetattr(STDIN_FILENO, 0, &RawTermIos);
-      }
-      /* C-d && 文字入力なし */
-      if (*bp == 0x04) {
+      }if (*bp == 0x04) { // C-d && 文字入力なし
         bp--;
         if (*bp == '\0') {
           /* 端末状態変更: Raw > Cooked */
@@ -186,9 +186,7 @@ void input_read(char* bp) {
   return;
 }
 
-/* char* 型の文字列をスペース区切りの char** 型に変換する,
- * {",'} で囲った場合区切らない,
- * ${HOGE} の展開 */
+/* char* 型の文字列をスペース区切りの char** 型に変換する, 特殊文字を読んだらなにかする*/
 void input_analyse(char buf[], char** argv) {
   char* bp = buf;
   bp++;  // buf 先頭 = NULL のため
