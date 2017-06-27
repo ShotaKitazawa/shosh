@@ -22,17 +22,17 @@ int ret;              // 子プロセス exec 時の値
 void sigcatch(int sig);
 void print_env();
 void input_read(char* bp);
+void input_pipe_separate(char buf[], char*** argv);
 void input_analyse(char buf[], char** argv);
-void argv_execute(char** argv);
-void argv_free(char** argv);
-void argv_exec_return(char** argv);
+void argv_execute(char*** argv);
+//void argv_free(char** argv);
 
 
 int main() {
   /* 変数宣言・初期化 */
   char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
   char* bp;          // buf へのポインタ
-  char** argv;       // buf をスペース区切りにしたもの
+  char*** argv;       // buf をスペース区切りにしたもの
 
   /* シェルに対する SIGINT, SIGTSTP シグナルの無効化 */
   if (SIG_ERR == signal(SIGINT, sigcatch)) {
@@ -48,7 +48,8 @@ int main() {
     /* コマンド毎の初期化 */
     print_env();
     memset(buf, '\0', LENGTH);
-    argv = (char**)malloc(LENGTH);
+    argv = (char***)malloc(LENGTH);
+    *argv = (char**)malloc(LENGTH);
     bp = buf;
     *bp = '\0';
 
@@ -65,12 +66,12 @@ int main() {
     if (strcmp(bp, "exit") == 0) exit(0);
 
     /* char* 型の文字列をスペース区切りの char** 型に変換する */
-    input_analyse(buf, argv);
+    input_pipe_separate(buf, argv);
 
     /* test */
-    //printf("argv[0]: %s\n", argv[0]);
-    //printf("argv[1]: %s\n", argv[1]);
-    //printf("argv[2]: %s\n", argv[2]);
+    //printf("argv[0]: %s\n", argv[0][0]);
+    //printf("argv[1]: %s\n", argv[1][0]);
+    //printf("argv[2]: %s\n", argv[2][0]);
 
     /* 実行 */
     argv_execute(argv);
@@ -186,10 +187,36 @@ void input_read(char* bp) {
   return;
 }
 
+void input_pipe_separate(char buf[], char*** argv){
+  char tmp_buf[LENGTH];
+  char* tbp = tmp_buf;
+  char* bp = buf;
+  bp++;  // buf 先頭 = NULL のため
+
+  while(*bp != '\0'){
+    if (*bp == 0x7c) { // pipe
+      *tbp = '\0';
+      input_analyse(tmp_buf, *argv);
+      memset(tmp_buf, '\0', LENGTH);
+      tbp = tmp_buf;
+      argv++;
+      *argv = (char**)malloc(LENGTH);
+    }
+    else{
+      *tbp = *bp;
+      tbp++;
+    }
+    bp++;
+  }
+  *tbp = '\0';
+  input_analyse(tmp_buf,*argv);
+  argv++;
+  *argv = '\0';
+}
+
 /* char* 型の文字列をスペース区切りの char** 型に変換する, 特殊文字を読んだらなにかする*/
 void input_analyse(char buf[], char** argv) {
   char* bp = buf;
-  bp++;  // buf 先頭 = NULL のため
   *argv = (char*)malloc(LENGTH);
   int word_count = 0; // spece で区切られた各文字列の文字数
   int space_count = 0; // spece の数
@@ -217,23 +244,6 @@ void input_analyse(char buf[], char** argv) {
       dollar_flag = 1;
     } else if (*bp == 0x27) {  // '
       sq_flag ^= 1;
-    } else if (*bp == 0x7c) {  // |
-      /* NULL Terminate & ポインタを先頭に戻す*/
-      **argv = '\0';
-      while (word_count > 0) {
-        printf("word_count\n");
-        word_count--;
-        (*argv)--;
-      }
-      while (space_count > 0){
-        printf("space_count\n");
-        space_count--;
-        argv--;
-      }
-      argv_exec_return(argv);
-
-      // argv を作り直す (free, malloc); 各変数初期化
-      // 上の返り値 (パイプまでのargvの実行結果) を パイプ後の argv[1] にstrcpy
     } else if (*bp == 0x7b && dollar_flag) {  // ${HOGE} の { の部分
       env_flag = 1;
     } else if (*bp == 0x7d && dollar_flag && env_flag) {  // ${HOGE} の } の部分
@@ -263,26 +273,21 @@ void input_analyse(char buf[], char** argv) {
   while (word_count > 0) {
     word_count--;
     (*argv)--;
-  }
-  argv++;
+  } argv++;
   *argv = '\0';
 }
 
-/* In: char** argv (コマンド), Out: 実行結果*/
-void argv_exec_return(char** argv){
-}
-
-void argv_execute(char** argv) {
-  if (strcmp(argv[0], "cd") == 0) {
-    if (!argv[1])
+void argv_execute(char*** argv) {
+  if (strcmp(*argv[0], "cd") == 0) {
+    if (!*argv[1])
       chdir(getenv("HOME"));
-    else if ((ret = chdir(argv[1])) < 0)
-      printf("-shosh: cd: %s: No such file or directory\n", argv[1]);
+    else if ((ret = chdir(*argv[1])) < 0)
+      printf("-shosh: cd: %s: No such file or directory\n", *argv[1]);
   } else {
     if ((pid = fork()) < 0) perror("### Fork failed! ###");
     else if (pid == 0){
-      if ((ret = execvp(argv[0], argv)) < 0) {
-        printf("-shosh: %s: command not found\n", argv[0]);
+      if ((ret = execvp(*argv[0], *argv)) < 0) {
+        printf("-shosh: %s: command not found\n", *argv[0]);
       }
       exit(0);
     }
@@ -290,6 +295,6 @@ void argv_execute(char** argv) {
   }
 }
 
-void argv_free(char** argv) {
-  while (**argv == '\0') free((*argv)++);
-}
+//void argv_free(char** argv) {
+//  while (**argv == '\0') free((*argv)++);
+//}
