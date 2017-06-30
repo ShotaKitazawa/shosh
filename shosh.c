@@ -22,16 +22,17 @@ int ret;              // 子プロセス exec 時の値
 void sigcatch(int sig);
 void print_env();
 void input_read(char* bp);
-void input_pipe_separate(char buf[], char*** argv);
+void input_pipe_separate(char buf[], char*** argvs);
 void input_analyse(char buf[], char** argv);
-void argv_execute(char*** argv);
+void argvs_execute(char*** argvs);
+void argv_execute(char** argv);
 // void argv_free(char** argv);
 
 int main() {
   /* 変数宣言・初期化 */
   char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
   char* bp;          // buf へのポインタ
-  char*** argv;      // buf をスペース区切りにしたもの
+  char*** argvs;      // buf をスペース区切りにしたもの
 
   /* シェルに対する SIGINT, SIGTSTP シグナルの無効化 */
   if (SIG_ERR == signal(SIGINT, sigcatch)) {
@@ -47,8 +48,8 @@ int main() {
     /* コマンド毎の初期化 */
     print_env();
     memset(buf, '\0', LENGTH);
-    argv = (char***)malloc(LENGTH);
-    *argv = (char**)malloc(LENGTH);
+    argvs = (char***)malloc(LENGTH);
+    *argvs = (char**)malloc(LENGTH);
     bp = buf;
     *bp = '\0';
 
@@ -65,18 +66,18 @@ int main() {
     if (strcmp(bp, "exit") == 0) exit(0);
 
     /* char* 型の文字列をスペース区切りの char** 型に変換する */
-    input_pipe_separate(buf, argv);
+    input_pipe_separate(buf, argvs);
 
     /* test */
-    // printf("argv[0]: %s\n", argv[0][0]);
-    // printf("argv[1]: %s\n", argv[1][0]);
-    // printf("argv[2]: %s\n", argv[2][0]);
+    // printf("argvs[0]: %s\n", argvs[0][0]);
+    // printf("argvs[1]: %s\n", argvs[1][0]);
+    // printf("argvs[2]: %s\n", argvs[2][0]);
 
     /* 実行 */
-    argv_execute(argv);
+    argvs_execute(argvs);
 
     /* free */
-    // argv_free(argv);
+    // argvs_free(argvs);
   }
 }
 
@@ -190,7 +191,7 @@ void input_read(char* bp) {
   return;
 }
 
-void input_pipe_separate(char buf[], char*** argv) {
+void input_pipe_separate(char buf[], char*** argvs) {
   char tmp_buf[LENGTH];
   char* tbp = tmp_buf;
   char* bp = buf;
@@ -199,11 +200,11 @@ void input_pipe_separate(char buf[], char*** argv) {
   while (*bp != '\0') {
     if (*bp == 0x7c) {  // pipe
       *tbp = '\0';
-      input_analyse(tmp_buf, *argv);
+      input_analyse(tmp_buf, *argvs);
       memset(tmp_buf, '\0', LENGTH);
       tbp = tmp_buf;
-      argv++;
-      *argv = (char**)malloc(LENGTH);
+      argvs++;
+      *argvs = (char**)malloc(LENGTH);
     } else {
       *tbp = *bp;
       tbp++;
@@ -211,9 +212,9 @@ void input_pipe_separate(char buf[], char*** argv) {
     bp++;
   }
   *tbp = '\0';
-  input_analyse(tmp_buf, *argv);
-  argv++;
-  *argv = '\0';
+  input_analyse(tmp_buf, *argvs);
+  argvs++;
+  *argvs = '\0';
 }
 
 /* char* 型の文字列をスペース区切りの char** 型に変換する,
@@ -285,18 +286,22 @@ void input_analyse(char buf[], char** argv) {
   *argv = '\0';
 }
 
-void argv_execute(char*** argv) {
-  if (strcmp(*argv[0], "cd") == 0) {
-    if (!*argv[1])
+void argvs_execute(char*** argvs) {
+  argv_execute(*argvs);
+}
+
+void argv_execute(char** argv) {
+  if (strcmp(argv[0], "cd") == 0) {
+    if (!argv[1])
       chdir(getenv("HOME"));
-    else if ((ret = chdir(*argv[1])) < 0)
-      printf("-shosh: cd: %s: No such file or directory\n", *argv[1]);
+    else if ((ret = chdir(argv[1])) < 0)
+      printf("-shosh: cd: %s: No such file or directory\n", argv[1]);
   } else {
     if ((pid = fork()) < 0)
       perror("### Fork failed! ###");
     else if (pid == 0) {
-      if ((ret = execvp(*argv[0], *argv)) < 0) {
-        printf("-shosh: %s: command not found\n", *argv[0]);
+      if ((ret = execvp(argv[0], argv)) < 0) {
+        printf("-shosh: %s: command not found\n", argv[0]);
       }
       exit(0);
     }
@@ -304,6 +309,5 @@ void argv_execute(char*** argv) {
   }
 }
 
-// void argv_free(char** argv) {
-//  while (**argv == '\0') free((*argv)++);
+// void argv_free(char*** argvs) {
 //}
