@@ -26,7 +26,7 @@ void input_pipe_separate(char buf[], char*** argvs);
 void input_analyse(char buf[], char** argv);
 void argvs_execute(char*** argvs);
 void argv_execute(char** argv);
-// void argv_free(char** argv);
+void argvs_free(char*** argvs);
 
 int main() {
   /* 変数宣言・初期化 */
@@ -69,15 +69,25 @@ int main() {
     input_pipe_separate(buf, argvs);
 
     /* test */
-    // printf("argvs[0]: %s\n", argvs[0][0]);
-    // printf("argvs[1]: %s\n", argvs[1][0]);
-    // printf("argvs[2]: %s\n", argvs[2][0]);
+    //printf("argvs[0][0]: %s\n", argvs[0][0]);
+    //printf("argvs[0][1]: %s\n", argvs[0][1]);
+    //printf("argvs[0][2]: %s\n", argvs[0][2]);
+
+    /* test (セグフォるから要修正) */
+    //int i, j;
+    //for (i = 0;*argvs != '\0'; i++){
+    //  for (j = 0;**argvs != '\0'; j++){
+    //    printf("argvs[%d][%d]: %s\n", i, j, argvs[i][j]);
+    //  (*argvs)++;
+    //  }
+    //  argvs++;
+    //}
 
     /* 実行 */
     argvs_execute(argvs);
 
     /* free */
-    // argvs_free(argvs);
+    argvs_free(argvs);
   }
 }
 
@@ -223,6 +233,7 @@ void input_analyse(char buf[], char** argv) {
   char* bp = buf;
   *argv = (char*)malloc(LENGTH);
   int word_count = 0;   // spece で区切られた各文字列の文字数
+  int space_flag = 0;
   int dq_flag = 0;      // " (double quotation) flag
   int sq_flag = 0;      // ' (single quotation) flag
   int dollar_flag = 0;  // $ flag
@@ -232,7 +243,9 @@ void input_analyse(char buf[], char** argv) {
   char env_return[LENGTH];
 
   while (*bp != '\0') {
-    if (*bp == 0x20 && !(dq_flag || sq_flag)) {  // space
+      space_flag = 0;
+    if (*bp == 0x20 && !dq_flag && !sq_flag) {  // space
+      space_flag = 1;
       if (!word_count) {
         bp++;
         continue;
@@ -276,8 +289,9 @@ void input_analyse(char buf[], char** argv) {
     }
     bp++;
   }
-  if (**argv == '\0') *argv = '\0';
+  if (space_flag) *argv = '\0';
   else **argv = '\0';
+
   while (word_count > 0) {
     word_count--;
     (*argv)--;
@@ -309,5 +323,15 @@ void argv_execute(char** argv) {
   }
 }
 
-// void argv_free(char*** argvs) {
-//}
+
+void argvs_free(char*** argvs) {
+  //char*** argvs_copy;
+  ////while(*argvs != '\0'){
+  //  while(**argvs != '\0'){
+  //    argvs_copy = argvs;
+  //    argvs_copy++;
+  //    free(**argvs);
+  //    argvs = argvs_copy;
+  //  }
+  //}
+}
