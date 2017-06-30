@@ -25,14 +25,13 @@ void input_read(char* bp);
 void input_pipe_separate(char buf[], char*** argv);
 void input_analyse(char buf[], char** argv);
 void argv_execute(char*** argv);
-//void argv_free(char** argv);
-
+// void argv_free(char** argv);
 
 int main() {
   /* 変数宣言・初期化 */
   char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
   char* bp;          // buf へのポインタ
-  char*** argv;       // buf をスペース区切りにしたもの
+  char*** argv;      // buf をスペース区切りにしたもの
 
   /* シェルに対する SIGINT, SIGTSTP シグナルの無効化 */
   if (SIG_ERR == signal(SIGINT, sigcatch)) {
@@ -69,20 +68,20 @@ int main() {
     input_pipe_separate(buf, argv);
 
     /* test */
-    //printf("argv[0]: %s\n", argv[0][0]);
-    //printf("argv[1]: %s\n", argv[1][0]);
-    //printf("argv[2]: %s\n", argv[2][0]);
+    // printf("argv[0]: %s\n", argv[0][0]);
+    // printf("argv[1]: %s\n", argv[1][0]);
+    // printf("argv[2]: %s\n", argv[2][0]);
 
     /* 実行 */
     argv_execute(argv);
 
     /* free */
-    //argv_free(argv);
+    // argv_free(argv);
   }
 }
 
 void sigcatch(int sig) {
-  //printf("called sigcatch: %d\n", sig);
+  // printf("called sigcatch: %d\n", sig);
   switch (sig) {
     case 2:  // C-c
       return;
@@ -127,8 +126,8 @@ void input_read(char* bp) {
     // *bp を前にずらす
 
     /* デバッグ用 */
-    //printf("%x", *bp);
-    //fflush(stdout);
+    // printf("%x", *bp);
+    // fflush(stdout);
 
     /* もし図形文字ならば出力 */
     if ((*bp & 0xe0) > 0x00 && *bp != 0x7f) {
@@ -137,9 +136,10 @@ void input_read(char* bp) {
 
     /* 出力文字以外の場合、キーごとの処理後 *bp='\0';bp--; */
     else {
-      if (*bp == 0x0d){ // enter
+      if (*bp == 0x0d) {  // enter
         enter_flag++;
-      }if (*bp == 0x7f) { // backspace
+      }
+      if (*bp == 0x7f) {  // backspace
         bp--;
         if (*bp != '\0') {
           *bp = '\0';
@@ -149,9 +149,11 @@ void input_read(char* bp) {
         } else {
           bp++;
         }
-      }if (*bp == 0x09) { // Tab
-        //TODO
-      }if (*bp == 0x03) { // Ctrl + c
+      }
+      if (*bp == 0x09) {  // Tab
+        // TODO
+      }
+      if (*bp == 0x03) {  // Ctrl + c
         tcsetattr(STDIN_FILENO, 0, &CookedTermIos);
         printf("\n");
         print_env();
@@ -161,7 +163,8 @@ void input_read(char* bp) {
         }
         bp++;
         tcsetattr(STDIN_FILENO, 0, &RawTermIos);
-      }if (*bp == 0x04) { // C-d && 文字入力なし
+      }
+      if (*bp == 0x04) {  // C-d && 文字入力なし
         bp--;
         if (*bp == '\0') {
           /* 端末状態変更: Raw > Cooked */
@@ -187,50 +190,52 @@ void input_read(char* bp) {
   return;
 }
 
-void input_pipe_separate(char buf[], char*** argv){
+void input_pipe_separate(char buf[], char*** argv) {
   char tmp_buf[LENGTH];
   char* tbp = tmp_buf;
   char* bp = buf;
   bp++;  // buf 先頭 = NULL のため
 
-  while(*bp != '\0'){
-    if (*bp == 0x7c) { // pipe
+  while (*bp != '\0') {
+    if (*bp == 0x7c) {  // pipe
       *tbp = '\0';
       input_analyse(tmp_buf, *argv);
       memset(tmp_buf, '\0', LENGTH);
       tbp = tmp_buf;
       argv++;
       *argv = (char**)malloc(LENGTH);
-    }
-    else{
+    } else {
       *tbp = *bp;
       tbp++;
     }
     bp++;
   }
   *tbp = '\0';
-  input_analyse(tmp_buf,*argv);
+  input_analyse(tmp_buf, *argv);
   argv++;
   *argv = '\0';
 }
 
-/* char* 型の文字列をスペース区切りの char** 型に変換する, 特殊文字を読んだらなにかする*/
+/* char* 型の文字列をスペース区切りの char** 型に変換する,
+ * 特殊文字を読んだらなにかする*/
 void input_analyse(char buf[], char** argv) {
   char* bp = buf;
   *argv = (char*)malloc(LENGTH);
-  int word_count = 0; // spece で区切られた各文字列の文字数
-  int space_count = 0; // spece の数
-  int dq_flag = 0; // " (double quotation) flag
-  int sq_flag = 0; // ' (single quotation) flag
-  int dollar_flag = 0; // $ flag
-  int env_flag = 0; // environment_variable flag
+  int word_count = 0;   // spece で区切られた各文字列の文字数
+  int dq_flag = 0;      // " (double quotation) flag
+  int sq_flag = 0;      // ' (single quotation) flag
+  int dollar_flag = 0;  // $ flag
+  int env_flag = 0;     // environment_variable flag
   char env_buf[LENGTH];
   char* envp = env_buf;
   char env_return[LENGTH];
 
   while (*bp != '\0') {
     if (*bp == 0x20 && !(dq_flag || sq_flag)) {  // space
-      space_count++;
+      if (!word_count) {
+        bp++;
+        continue;
+      }
       **argv = '\0';
       while (word_count > 0) {
         word_count--;
@@ -238,6 +243,7 @@ void input_analyse(char buf[], char** argv) {
       }
       argv++;
       *argv = (char*)malloc(LENGTH);
+      **argv = '\0';
     } else if (*bp == 0x22) {  // "
       dq_flag ^= 1;
     } else if (*bp == 0x24 && !sq_flag) {  // $
@@ -269,11 +275,13 @@ void input_analyse(char buf[], char** argv) {
     }
     bp++;
   }
-  **argv = '\0';
+  if (**argv == '\0') *argv = '\0';
+  else **argv = '\0';
   while (word_count > 0) {
     word_count--;
     (*argv)--;
-  } argv++;
+  }
+  argv++;
   *argv = '\0';
 }
 
@@ -284,8 +292,9 @@ void argv_execute(char*** argv) {
     else if ((ret = chdir(*argv[1])) < 0)
       printf("-shosh: cd: %s: No such file or directory\n", *argv[1]);
   } else {
-    if ((pid = fork()) < 0) perror("### Fork failed! ###");
-    else if (pid == 0){
+    if ((pid = fork()) < 0)
+      perror("### Fork failed! ###");
+    else if (pid == 0) {
       if ((ret = execvp(*argv[0], *argv)) < 0) {
         printf("-shosh: %s: command not found\n", *argv[0]);
       }
@@ -295,6 +304,6 @@ void argv_execute(char*** argv) {
   }
 }
 
-//void argv_free(char** argv) {
+// void argv_free(char** argv) {
 //  while (**argv == '\0') free((*argv)++);
 //}
