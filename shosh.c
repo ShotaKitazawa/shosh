@@ -24,8 +24,9 @@ void print_env();
 void input_read(char* bp);
 void input_pipe_separate(char buf[], char*** argvs);
 void input_analyse(char buf[], char** argv);
+int argvs_hascommand(char*** argvs);
 void argvs_execute(char*** argvs);
-void argv_execute(char** argv);
+void argv_execute(char** argv, int fd[2], int flag);
 void argvs_free(char*** argvs);
 
 int main() {
@@ -300,11 +301,28 @@ void input_analyse(char buf[], char** argv) {
   *argv = '\0';
 }
 
-void argvs_execute(char*** argvs) {
-  argv_execute(*argvs);
+int argvs_hascommand(char*** argvs){
+  int n = 0;
+  while (*argvs != '\0') {
+    n++;
+    argvs++;
+  }
+  return n;
 }
 
-void argv_execute(char** argv) {
+void argvs_execute(char*** argvs) {
+  int fd[2];
+  int hascommand =  argvs_hascommand(argvs);
+  if (hascommand == 1) argv_execute(*argvs, fd, -1);
+  else {
+    pipe(fd);
+    argv_execute(*argvs, fd, 1);
+    argvs++;
+    argv_execute(*argvs, fd, 0);
+  }
+}
+
+void argv_execute(char** argv, int fd[2], int flag) {
   if (strcmp(argv[0], "cd") == 0) {
     if (!argv[1])
       chdir(getenv("HOME"));
@@ -313,7 +331,13 @@ void argv_execute(char** argv) {
   } else {
     if ((pid = fork()) < 0)
       perror("### Fork failed! ###");
-    else if (pid == 0) {
+    if (pid == 0) {
+      if (flag == 1){
+        dup2(fd[1], 1);
+      }
+      if (flag == 0){
+        dup2(fd[0], 0);
+      }
       if ((ret = execvp(argv[0], argv)) < 0) {
         printf("-shosh: %s: command not found\n", argv[0]);
       }
@@ -325,13 +349,4 @@ void argv_execute(char** argv) {
 
 
 void argvs_free(char*** argvs) {
-  //char*** argvs_copy;
-  ////while(*argvs != '\0'){
-  //  while(**argvs != '\0'){
-  //    argvs_copy = argvs;
-  //    argvs_copy++;
-  //    free(**argvs);
-  //    argvs = argvs_copy;
-  //  }
-  //}
 }
