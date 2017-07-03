@@ -7,9 +7,6 @@
 
 #define LENGTH 64
 
-/* TODO 表示 */
-const char* URL = "https://github.com/ShotaKitazawa/shosh";
-
 /* Terminal mode 定義*/
 struct termios CookedTermIos;  // cooked モード用
 struct termios RawTermIos;     // raw モード用
@@ -33,7 +30,7 @@ int main() {
   /* 変数宣言・初期化 */
   char buf[LENGTH];  // 0番目はNULL (BackSpace判定のため)
   char* bp;          // buf へのポインタ
-  char*** argvs;      // buf をスペース区切りにしたもの
+  char*** argvs;     // buf をスペース区切りにしたもの
 
   /* シェルに対する SIGINT, SIGTSTP シグナルの無効化 */
   if (SIG_ERR == signal(SIGINT, sigcatch)) {
@@ -70,13 +67,13 @@ int main() {
     input_pipe_separate(buf, argvs);
 
     /* test */
-    //printf("argvs[0][0]: %s\n", argvs[0][0]);
-    //printf("argvs[0][1]: %s\n", argvs[0][1]);
-    //printf("argvs[0][2]: %s\n", argvs[0][2]);
+    // printf("argvs[0][0]: %s\n", argvs[0][0]);
+    // printf("argvs[0][1]: %s\n", argvs[0][1]);
+    // printf("argvs[0][2]: %s\n", argvs[0][2]);
 
     /* test (セグフォるから要修正) */
-    //int i, j;
-    //for (i = 0;*argvs != '\0'; i++){
+    // int i, j;
+    // for (i = 0;*argvs != '\0'; i++){
     //  for (j = 0;**argvs != '\0'; j++){
     //    printf("argvs[%d][%d]: %s\n", i, j, argvs[i][j]);
     //  (*argvs)++;
@@ -117,6 +114,9 @@ void print_env() {
 void input_read(char* bp) {
   /* 初期化 */
   int enter_flag = 0;
+  char* bp_back;
+  int count_back;
+  char tmp;
 
   /* cooked, raw モードの状態を保存 */
   tcgetattr(STDIN_FILENO, &CookedTermIos);
@@ -131,11 +131,7 @@ void input_read(char* bp) {
     bp++;  // 先頭がNULLのため
 
     /* 入力 */
-    // if (*bp == '\0'){
     *bp = getchar();
-    // } else
-    // TODO: *bp が NULL でない > Ctrl+f でカーソルを移動してきた > 1文字ずつ
-    // *bp を前にずらす
 
     /* デバッグ用 */
     // printf("%x", *bp);
@@ -163,7 +159,7 @@ void input_read(char* bp) {
         }
       }
       if (*bp == 0x09) {  // Tab
-        // TODO
+                          // TODO
       }
       if (*bp == 0x03) {  // Ctrl + c
         tcsetattr(STDIN_FILENO, 0, &CookedTermIos);
@@ -185,6 +181,14 @@ void input_read(char* bp) {
           exit(0);
         }
         bp++;
+      }
+      if (*bp == 0x02) { // C-b
+        bp--;
+        if (*bp == '\0'){
+          bp++;
+        } else{
+          printf("\b");
+        }
       }
       *bp = '\0';
       bp--;
@@ -233,7 +237,7 @@ void input_pipe_separate(char buf[], char*** argvs) {
 void input_analyse(char buf[], char** argv) {
   char* bp = buf;
   *argv = (char*)malloc(LENGTH);
-  int word_count = 0;   // spece で区切られた各文字列の文字数
+  int word_count = 0;  // spece で区切られた各文字列の文字数
   int space_flag = 0;
   int dq_flag = 0;      // " (double quotation) flag
   int sq_flag = 0;      // ' (single quotation) flag
@@ -244,7 +248,7 @@ void input_analyse(char buf[], char** argv) {
   char env_return[LENGTH];
 
   while (*bp != '\0') {
-      space_flag = 0;
+    space_flag = 0;
     if (*bp == 0x20 && !dq_flag && !sq_flag) {  // space
       space_flag = 1;
       if (!word_count) {
@@ -290,8 +294,10 @@ void input_analyse(char buf[], char** argv) {
     }
     bp++;
   }
-  if (space_flag) *argv = '\0';
-  else **argv = '\0';
+  if (space_flag)
+    *argv = '\0';
+  else
+    **argv = '\0';
 
   while (word_count > 0) {
     word_count--;
@@ -301,7 +307,7 @@ void input_analyse(char buf[], char** argv) {
   *argv = '\0';
 }
 
-int argvs_hascommand(char*** argvs){
+int argvs_hascommand(char*** argvs) {
   int n = 0;
   while (*argvs != '\0') {
     n++;
@@ -312,8 +318,9 @@ int argvs_hascommand(char*** argvs){
 
 void argvs_execute(char*** argvs) {
   int fd[2];
-  int hascommand =  argvs_hascommand(argvs);
-  if (hascommand == 1) argv_execute(*argvs, fd, -1);
+  int hascommand = argvs_hascommand(argvs);
+  if (hascommand == 1)
+    argv_execute(*argvs, fd, -1);
   else {
     pipe(fd);
     argv_execute(*argvs, fd, 1);
@@ -329,13 +336,12 @@ void argv_execute(char** argv, int fd[2], int flag) {
     else if ((ret = chdir(argv[1])) < 0)
       printf("-shosh: cd: %s: No such file or directory\n", argv[1]);
   } else {
-    if ((pid = fork()) < 0)
-      perror("### Fork failed! ###");
+    if ((pid = fork()) < 0) perror("### Fork failed! ###");
     if (pid == 0) {
-      if (flag == 1){
+      if (flag == 1) {
         dup2(fd[1], 1);
       }
-      if (flag == 0){
+      if (flag == 0) {
         dup2(fd[0], 0);
       }
       if ((ret = execvp(argv[0], argv)) < 0) {
@@ -346,7 +352,6 @@ void argv_execute(char** argv, int fd[2], int flag) {
     pid_wait = wait(NULL);
   }
 }
-
 
 void argvs_free(char*** argvs) {
 }
