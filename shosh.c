@@ -49,7 +49,7 @@ int main() {
     argvs = (char***)malloc(LENGTH);
     *argvs = (char**)malloc(LENGTH);
     bp = buf;
-    *bp = '\0';
+    *bp = '\0'; // 前方への走査のために buf[0] を NULL にする
 
     /* Enter まで読み込み */
     input_read(bp);
@@ -66,20 +66,10 @@ int main() {
     /* char* 型の文字列をスペース区切りの char** 型に変換する */
     input_pipe_separate(buf, argvs);
 
-    /* test */
+    /* debug */
     // printf("argvs[0][0]: %s\n", argvs[0][0]);
     // printf("argvs[0][1]: %s\n", argvs[0][1]);
     // printf("argvs[0][2]: %s\n", argvs[0][2]);
-
-    /* test (セグフォるから要修正) */
-    // int i, j;
-    // for (i = 0;*argvs != '\0'; i++){
-    //  for (j = 0;**argvs != '\0'; j++){
-    //    printf("argvs[%d][%d]: %s\n", i, j, argvs[i][j]);
-    //  (*argvs)++;
-    //  }
-    //  argvs++;
-    //}
 
     /* 実行 */
     argvs_execute(argvs);
@@ -133,7 +123,7 @@ void input_read(char* bp) {
     /* 入力 */
     *bp = getchar();
 
-    /* デバッグ用 */
+    /* debug */
     // printf("%x", *bp);
     // fflush(stdout);
 
@@ -159,7 +149,7 @@ void input_read(char* bp) {
         }
       }
       if (*bp == 0x09) {  // Tab
-                          // TODO
+        // TODO
       }
       if (*bp == 0x03) {  // Ctrl + c
         tcsetattr(STDIN_FILENO, 0, &CookedTermIos);
@@ -183,12 +173,16 @@ void input_read(char* bp) {
         bp++;
       }
       if (*bp == 0x02) { // C-b
-        bp--;
-        if (*bp == '\0'){
-          bp++;
-        } else{
-          printf("\b");
-        }
+        // TODO
+        // bp--;
+        // if (*bp == '\0'){
+        //   bp++;
+        // } else{
+        //   printf("\b");
+        // }
+      }
+      if (*bp == 0x06) { // C-f
+        // TODO
       }
       *bp = '\0';
       bp--;
